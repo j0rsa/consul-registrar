@@ -1,0 +1,54 @@
+name: CI-X86
+
+on: [push]
+
+jobs:
+  build_and_test:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_IMAGE: j0rsa/consul-registrar
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install rust targets
+        run: |
+          rustup target add x86_64-unknown-linux-gnu
+
+      - name: build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features --target=x86_64-unknown-linux-gnu
+
+      - name: Get shortsha
+        id: vars
+        run: |
+          echo ::set-output name=sha_short::$(git rev-parse --short=6 ${{ github.sha }})
+
+      - name: Docker build
+        run: |
+          docker build -t ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} .
+
+# ======== MASTER ONLY =========================
+      - name: Docker login
+        if: github.ref == 'refs/heads/main'
+        uses: azure/docker-login@v1
+        with:
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Push image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} ${DOCKER_IMAGE}:latest
+          docker push ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }}
+          docker push ${DOCKER_IMAGE}:latest

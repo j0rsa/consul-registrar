@@ -1,0 +1,44 @@
+version: "3.8"
+services:
+  consul:
+    image: consul
+    ports:
+    - 8500:8500
+    networks:
+      micronet:
+        aliases:
+          - consul
+  minio:
+    image: minio/minio
+    ports:
+    - 9000:9000
+    command: ["server", "/data"]
+    networks:
+      public:
+      micronet:
+        aliases:
+          - minio
+
+  minio_registrar:
+    depends_on:
+      - consul
+    image: j0rsa/consul-registrar:latest
+    environment:
+      CONSUL_URL: http://consul:8500
+      REG_SERVICE_NAME: minio
+      REG_INSTANCE_NAME: minio-1
+      REG_INSTANCE_ADDR: minio
+      REG_INSTANCE_PORT: 9000
+      REG_INSTANCE_TAGS: "test, test1"
+      REG_INSTANCE_META: "amazing=true, env=docker-compose"
+      REG_HEALTHCHECK_DEREGISTER_AFTER: "2m"
+      REG_HEALTHCHECK_URL: "http://minio:9000/minio/health/live"
+      REG_HEALTHCHECK_INTERVAL: "10s"
+    networks:
+      micronet:
+
+networks:
+  public:
+    internal: false
+  micronet:
+    internal: true # switch to true when to public access to all services

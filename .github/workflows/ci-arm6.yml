@@ -1,0 +1,61 @@
+name: CI-ARMv6
+
+on: [push]
+
+jobs:
+  build_and_test:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_IMAGE: j0rsa/consul-registrar
+      DOCKER_TARGET_PLATFORM: linux/arm/v6
+      DOCKER_ARM_FILE: Dockerfile
+      RUSTFLAGS: "-C linker=$HOME/rpi_tools/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install rust targets
+        run: |
+          rustup target add arm-unknown-linux-gnueabi
+          git clone https://github.com/raspberrypi/tools $HOME/rpi_tools
+
+      - name: Get shortsha
+        id: vars
+        run: |
+          echo ::set-output name=sha_short::$(git rev-parse --short=6 ${{ github.sha }})
+
+      - name: Set up Docker Buildx
+        uses: crazy-max/ghaction-docker-buildx@v1
+        with:
+          version: latest
+
+      - name: Docker build armv7
+        run: |
+          docker buildx build \
+          --platform ${DOCKER_TARGET_PLATFORM} \
+          --tag ${DOCKER_IMAGE}:armv6_${{ steps.prepare.outputs.version }} \
+          --file ./${DOCKER_ARM_FILE} \
+          --output type=image,push=false .
+
+# ======== MASTER ONLY =========================
+      - name: Docker login
+        if: github.ref == 'refs/heads/main'
+        uses: azure/docker-login@v1
+        with:
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Push ARMv7 image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker tag ${DOCKER_IMAGE}:arm7_${{ steps.vars.outputs.sha_short }} ${DOCKER_IMAGE}:arm7_latest
+          docker push ${DOCKER_IMAGE}:arm7_${{ steps.vars.outputs.sha_short }}
+          docker push ${DOCKER_IMAGE}:arm7_latest
