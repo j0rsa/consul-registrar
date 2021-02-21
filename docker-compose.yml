@@ -41,4 +41,4 @@ networks:
   public:
     internal: false
   micronet:
-    internal: true # switch to true when to public access to all services
+    internal: false # switch to true when to public access to all services

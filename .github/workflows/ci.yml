@@ -88,11 +88,12 @@ jobs:
         with:
           version: latest
 
-      - name: Docker build
+      - name: Docker buildx build
+        if: github.ref != 'refs/heads/main'
         run: |
           docker buildx build \
           --platform ${DOCKER_TARGET_PLATFORM} \
-          --tag ${DOCKER_IMAGE}:armv6_${{ steps.vars.outputs.sha_short }} \
+          --tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} \
           --build-arg TARGET=${RUST_TARGET} \
           --file ./${DOCKER_FILE} \
           --load .
@@ -104,12 +105,16 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Push image
+      - name: Docker buildx build and push
         if: github.ref == 'refs/heads/main'
         run: |
-          docker tag ${DOCKER_IMAGE}:armv6_${{ steps.vars.outputs.sha_short }} ${DOCKER_IMAGE}:armv6_latest
-          docker push ${DOCKER_IMAGE}:armv6_${{ steps.vars.outputs.sha_short }}
-          docker push ${DOCKER_IMAGE}:armv6_latest
+          docker buildx build \
+          --platform ${DOCKER_TARGET_PLATFORM} \
+          --tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} \
+          --tag ${DOCKER_IMAGE}:latest \
+          --build-arg TARGET=${RUST_TARGET} \
+          --file ./${DOCKER_FILE} \
+          --push .
 
   build_arm_v7:
     name: Build ARMv7
@@ -155,10 +160,11 @@ jobs:
           version: latest
 
       - name: Docker buildx build
+        if: github.ref != 'refs/heads/main'
         run: |
           docker buildx build \
           --platform ${DOCKER_TARGET_PLATFORM} \
-          --tag ${DOCKER_IMAGE}:armv7_${{ steps.vars.outputs.sha_short }} \
+          --tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} \
           --build-arg TARGET=${RUST_TARGET} \
           --file ./${DOCKER_FILE} \
           --load .
@@ -170,9 +176,13 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Push image
+      - name: Docker buildx build and push
         if: github.ref == 'refs/heads/main'
         run: |
-          docker tag ${DOCKER_IMAGE}:armv7_${{ steps.vars.outputs.sha_short }} ${DOCKER_IMAGE}:armv7_latest
-          docker push ${DOCKER_IMAGE}:armv7_${{ steps.vars.outputs.sha_short }}
-          docker push ${DOCKER_IMAGE}:armv7_latest
+          docker buildx build \
+          --platform ${DOCKER_TARGET_PLATFORM} \
+          --tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} \
+          --tag ${DOCKER_IMAGE}:latest \
+          --build-arg TARGET=${RUST_TARGET} \
+          --file ./${DOCKER_FILE} \
+          --push .
