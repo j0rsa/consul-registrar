@@ -111,7 +111,7 @@ jobs:
           docker buildx build \
           --platform ${DOCKER_TARGET_PLATFORM} \
           --tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} \
-          --tag ${DOCKER_IMAGE}:latest \
+          --tag ${DOCKER_IMAGE}:armv6_latest \
           --build-arg TARGET=${RUST_TARGET} \
           --file ./${DOCKER_FILE} \
           --push .
@@ -182,7 +182,7 @@ jobs:
           docker buildx build \
           --platform ${DOCKER_TARGET_PLATFORM} \
           --tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} \
-          --tag ${DOCKER_IMAGE}:latest \
+          --tag ${DOCKER_IMAGE}:armv7_latest \
           --build-arg TARGET=${RUST_TARGET} \
           --file ./${DOCKER_FILE} \
           --push .
