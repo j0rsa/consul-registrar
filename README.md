@@ -4,7 +4,8 @@ A tiny app which allows to register a service
 via the consul agent
 
 ## Usage
-Env vars:
+
+### Env vars:
 
 | Name | Example | Default value | Description |
 | --- | --- | --- | --- |
@@ -20,19 +21,32 @@ Env vars:
 | REG_HEALTHCHECK_INTERVAL | 10s | 1m | How often to perform a healtcheck |
 | REG_HEALTHCHECK_TIMEOUT | 30s | 5s | Duration after check will timeout |
 
-Run locally:
+### Run locally:
 ```shell
     REG_SERVICE_NAME=test REG_INSTANCE_NAME=test1 cargo_registrar
 ```
 
-Run with docker:
+### Run with docker:
 ```shell
-    docker run \
+    docker run --rm -it \
     -e REG_SERVICE_NAME=test \
     -e REG_INSTANCE_NAME=test1 \
-    j0rsa/cargo-registrar
+    j0rsa/consul-registrar:latest
 ```
 
-Testing:
+### Testing:
 
     docker-compose up -d
+
+## Solving CI puzzle?
+
+    docker run --rm -it -v $(pwd):/opt/ ubuntu:latest bash
+
+## Build x86 locally
+
+    docker build \
+          --build-arg BINARY_NAME=consul-registrar \
+          --build-arg DEP_NAME=consul_registrar \
+          -t j0rsa/consul-registrar:local .
+
+    docker run --rm -it j0rsa/consul-registrar:local
