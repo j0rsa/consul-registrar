@@ -23,8 +23,9 @@ LABEL authors="red.avtovo@gmail.com"
 COPY --from=cargo-build /home/rust/src/target/x86_64-unknown-linux-musl/release/${BINARY_NAME} /opt/
 
 ENV RUST_LOG="info"
+ENV BINARY_NAME=$BINARY_NAME
 RUN apk add --no-cache ca-certificates && update-ca-certificates
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV SSL_CERT_DIR=/etc/ssl/certs
 
-CMD ["/opt/${BINARY_NAME}"]
+CMD /opt/${BINARY_NAME}
