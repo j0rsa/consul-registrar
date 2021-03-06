@@ -41,83 +41,12 @@ jobs:
       - name: Push image
         if: github.ref == 'refs/heads/main'
         run: |
-          docker tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} ${DOCKER_IMAGE}:latest
+          docker tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} ${DOCKER_IMAGE}:x86_64_latest
           docker push ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }}
-          docker push ${DOCKER_IMAGE}:latest
-
-  build_arm_v6:
-    name: Build ARMv6
-    runs-on: ubuntu-latest
-    env:
-      DOCKER_TARGET_PLATFORM: linux/arm/v6
-      RUST_TARGET: arm-unknown-linux-gnueabihf
-      DOCKER_FILE: Dockerfile.arm
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-        with:
-          fetch-depth: 1
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Install Dependencies
-        run: |
-          sudo apt install gcc-arm-linux-gnueabihf -y
-          rustup target add ${RUST_TARGET}
-
-#       Solves env substitution in args
-      - name: Set Vars
-        id: vars
-        run: |
-          echo ::set-output name=sha_short::$(git rev-parse --short=6 ${{ github.sha }})
-          echo ::set-output name=RUST_TARGET::${RUST_TARGET}
-
-      - name: Build
-        uses: actions-rs/cargo@v1
-        env:
-          CC: arm-linux-gnueabihf-gcc
-        with:
-          command: build
-          args: --release --all-features --target=${{ steps.vars.outputs.RUST_TARGET }}
-
-      - name: Set up Docker Buildx
-        uses: crazy-max/ghaction-docker-buildx@v1
-        with:
-          version: latest
-
-      - name: Docker buildx build
-        if: github.ref != 'refs/heads/main'
-        run: |
-          docker buildx build \
-          --platform ${DOCKER_TARGET_PLATFORM} \
-          --tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} \
-          --build-arg TARGET=${RUST_TARGET} \
-          --file ./${DOCKER_FILE} \
-          --load .
-
-      - name: Docker login
-        if: github.ref == 'refs/heads/main'
-        uses: azure/docker-login@v1
-        with:
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
-
-      - name: Docker buildx build and push
-        if: github.ref == 'refs/heads/main'
-        run: |
-          docker buildx build \
-          --platform ${DOCKER_TARGET_PLATFORM} \
-          --tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} \
-          --tag ${DOCKER_IMAGE}:armv6_latest \
-          --build-arg TARGET=${RUST_TARGET} \
-          --file ./${DOCKER_FILE} \
-          --push .
+          docker push ${DOCKER_IMAGE}:x86_64_latest
 
   build_arm_v7:
-    name: Build ARMv7
+    name: Build ARM
     runs-on: ubuntu-latest
     env:
       RUST_TARGET: armv7-unknown-linux-gnueabihf
@@ -184,5 +113,43 @@ jobs:
           --tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} \
           --tag ${DOCKER_IMAGE}:armv7_latest \
           --build-arg TARGET=${RUST_TARGET} \
+          --file ./${DOCKER_FILE} \
+          --push .
+
+  publish_latest:
+    name: Publish latest
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      DOCKER_FILE: Dockerfile.latest
+      DOCKER_TARGET_PLATFORM: linux/amd64,linux/arm/v7
+    needs:
+      - build_x86_64
+      - build_arm_v7
+    steps:
+      - name: Prepare images
+        run: |
+          docker pull ${DOCKER_IMAGE}:x86_64_latest
+          docker pull ${DOCKER_IMAGE}:armv7_latest
+          docker tag ${DOCKER_IMAGE}:x86_64_latest ${DOCKER_IMAGE}:amd64
+          docker tag ${DOCKER_IMAGE}:armv7_latest ${DOCKER_IMAGE}:arm
+
+      - name: Set up Docker Buildx
+        uses: crazy-max/ghaction-docker-buildx@v1
+        with:
+          version: latest
+
+      - name: Docker login
+        uses: azure/docker-login@v1
+        with:
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Docker buildx build and push
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker buildx build \
+          --platform ${DOCKER_TARGET_PLATFORM} \
+          --tag ${DOCKER_IMAGE}:armv7_latest \
           --file ./${DOCKER_FILE} \
           --push .
