@@ -3,7 +3,7 @@ name: CI
 on: [push]
 
 env:
-  DOCKER_IMAGE: j0rsa/consul-registrar
+  DOCKER_IMAGE: docker.io/j0rsa/consul-registrar
 
 jobs:
   build_x86_64:
@@ -41,9 +41,9 @@ jobs:
       - name: Push image
         if: github.ref == 'refs/heads/main'
         run: |
-          docker tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} ${DOCKER_IMAGE}:x86_64_latest
+          docker tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} ${DOCKER_IMAGE}:amd64_latest
           docker push ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }}
-          docker push ${DOCKER_IMAGE}:x86_64_latest
+          docker push ${DOCKER_IMAGE}:amd64_latest
 
   build_arm_v7:
     name: Build ARM
@@ -83,6 +83,13 @@ jobs:
           command: build
           args: --release --all-features --target=${{ steps.vars.outputs.RUST_TARGET }}
 
+      - name: Docker login
+        if: github.ref == 'refs/heads/main'
+        uses: azure/docker-login@v1
+        with:
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
       - name: Set up Docker Buildx
         uses: crazy-max/ghaction-docker-buildx@v1
         with:
@@ -98,20 +105,13 @@ jobs:
           --file ./${DOCKER_FILE} \
           --load .
 
-      - name: Docker login
-        if: github.ref == 'refs/heads/main'
-        uses: azure/docker-login@v1
-        with:
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
-
       - name: Docker buildx build and push
         if: github.ref == 'refs/heads/main'
         run: |
           docker buildx build \
           --platform ${DOCKER_TARGET_PLATFORM} \
           --tag ${DOCKER_IMAGE}:${{ steps.vars.outputs.sha_short }} \
-          --tag ${DOCKER_IMAGE}:armv7_latest \
+          --tag ${DOCKER_IMAGE}:arm_latest \
           --build-arg TARGET=${RUST_TARGET} \
           --file ./${DOCKER_FILE} \
           --push .
@@ -132,13 +132,6 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Prepare images
-        run: |
-          docker pull ${DOCKER_IMAGE}:x86_64_latest
-          docker pull ${DOCKER_IMAGE}:armv7_latest
-          docker tag ${DOCKER_IMAGE}:x86_64_latest ${DOCKER_IMAGE}:amd64
-          docker tag ${DOCKER_IMAGE}:armv7_latest ${DOCKER_IMAGE}:arm
-
       - name: Docker login
         uses: azure/docker-login@v1
         with:
@@ -151,10 +144,10 @@ jobs:
           version: latest
 
       - name: Docker buildx build and push
-        if: github.ref == 'refs/heads/main'
         run: |
           docker buildx build \
           --platform ${DOCKER_TARGET_PLATFORM} \
+          --build-arg IMAGE=${DOCKER_IMAGE} \
           --tag ${DOCKER_IMAGE}:latest \
           --file ./${DOCKER_FILE} \
           --push .
