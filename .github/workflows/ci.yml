@@ -134,22 +134,22 @@ jobs:
           docker tag ${DOCKER_IMAGE}:x86_64_latest ${DOCKER_IMAGE}:amd64
           docker tag ${DOCKER_IMAGE}:armv7_latest ${DOCKER_IMAGE}:arm
 
-      - name: Set up Docker Buildx
-        uses: crazy-max/ghaction-docker-buildx@v1
-        with:
-          version: latest
-
       - name: Docker login
         uses: azure/docker-login@v1
         with:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
+      - name: Set up Docker Buildx
+        uses: crazy-max/ghaction-docker-buildx@v1
+        with:
+          version: latest
+
       - name: Docker buildx build and push
         if: github.ref == 'refs/heads/main'
         run: |
           docker buildx build \
           --platform ${DOCKER_TARGET_PLATFORM} \
-          --tag ${DOCKER_IMAGE}:armv7_latest \
+          --tag ${DOCKER_IMAGE}:latest \
           --file ./${DOCKER_FILE} \
           --push .
