@@ -17,8 +17,13 @@ fn array_from(comma_separated_string: String) -> Vec<String> {
 fn map_from(comma_separated_string: String) -> HashMap<String, String> {
     comma_separated_string.split(',')
         .map(|kv| kv.split('='))
-        .map(|mut kv| (kv.next().unwrap().trim().into(),
-                       kv.next().unwrap().trim().into()))
+        .map(|mut kv| {
+            let ok: Option<String> = kv.next().map(|i| i.trim().into());
+            let ov: Option<String> = kv.next().map(|i| i.trim().into());
+            ok.and_then(|k| ov.and_then(|v| Some((k,v))))
+        })
+        .filter(|okv| okv.is_some())
+        .map(|okv| okv.unwrap())
         .collect()
 }
 
@@ -52,4 +57,29 @@ pub async fn main() -> Result<(), String> {
         .send().await
         .expect("Unable to register the service");
     if res.status()==StatusCode::OK { Ok(())} else {Err(format!("Consul agent returned unexpected code: {}", res.status()))}
+}
+
+#[cfg(test)]
+mod test {
+    use crate::*;
+
+    #[test]
+    fn test_array() {
+        assert_eq!(array_from("a,b,c".to_string()), ["a","b","c"])
+    }
+
+    #[test]
+    fn test_array_empty() {
+        assert_eq!(array_from("".to_string()), [""])
+    }
+
+    #[test]
+    fn test_map() {
+        assert_eq!(map_from("a=1,b=2".to_string()).keys().len(), 2)
+    }
+
+    #[test]
+    fn test_map_empty() {
+        assert_eq!(map_from("".to_string()).keys().len(), 0)
+    }
 }
